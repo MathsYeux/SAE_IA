@@ -9,6 +9,8 @@ public class Donnees {
     private ArrayList<Imagette> imagettes;
 
     private ArrayList<Etiquette> etiquettes;
+    private int rows;
+    private int cols;
     public Donnees(ArrayList<Imagette> imagettes, ArrayList<Etiquette> etiquettes) {
         this.imagettes = imagettes;
         this.etiquettes = etiquettes;
@@ -25,6 +27,9 @@ public class Donnees {
         int numImages = dis.readUnsignedByte() << 24 | dis.readUnsignedByte() << 16 | dis.readUnsignedByte() << 8 | dis.readUnsignedByte();
         int numRows =dis.readUnsignedByte() << 24 | dis.readUnsignedByte() << 16 | dis.readUnsignedByte() << 8 | dis.readUnsignedByte();
         int numCols = dis.readUnsignedByte() << 24 | dis.readUnsignedByte() << 16 | dis.readUnsignedByte() << 8 | dis.readUnsignedByte();
+
+        this.rows = numRows;
+        this.cols = numCols;
 
         ArrayList<Imagette> imagettes = new ArrayList<>();
         for (int i = 0; i < numImages; i++) {
@@ -65,6 +70,12 @@ public class Donnees {
 
     public void setEtiquettes(ArrayList<Etiquette> etiquettes) {
         this.etiquettes = etiquettes;
+    }
+    public int getRows(){
+        return this.rows;
+    }
+    public int getCols(){
+        return this.cols;
     }
 
 }

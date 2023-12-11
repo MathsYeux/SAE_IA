@@ -3,22 +3,22 @@ package read_mnist;
 public class Imagette {
     private int[][] pixels;
 
-    int[][] getPixels() {
-        return pixels;
-    }
-
     private Etiquette etiquette;
 
     public Imagette(int[][] pixels) {
         this.pixels = pixels;
     }
 
-    private void setPixels(int[][] pixels) {
-        this.pixels = pixels;
+    public int[][] getPixels() {
+        return pixels;
     }
 
-    Etiquette getEtiquette() {
+    public Etiquette getEtiquette() {
         return etiquette;
+    }
+
+    private void setPixels(int[][] pixels) {
+        this.pixels = pixels;
     }
 
     void setEtiquette(Etiquette etiquette) {
