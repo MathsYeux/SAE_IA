@@ -1,74 +1,82 @@
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Random;
+
+class Table {
+    double[][] inputs;
+    double[][] outputs;
+
+    Table(double[][] inputs, double[][] outputs) {
+        this.inputs = inputs;
+        this.outputs = outputs;
+    }
+}
 
 public class MainMLP {
     // Tableau pour stocker les résultats
     private static ArrayList<String> results = new ArrayList<>();
 
-    // Données d'entraînement et de test inputs
-    private static final double[][] trainingInputs = {
-            {0, 0},
-            {0, 1},
-            {1, 0},
-            {1, 1}
-    };
-
     // Données d'entraînement et de test pour XOR
-    private static final double[][] trainingOutputsXOR = {
-            {0},
-            {1},
-            {1},
-            {0}
-    };
+    private static final Table xorTable = new Table(
+            new double[][]{{0, 0}, {0, 1}, {1, 0}, {1, 1}},
+            new double[][]{{0}, {1}, {1}, {0}}
+    );
 
     // Données d'entraînement et de test pour OR
-    private static final double[][] trainingOutputsOR = {
-            {0},
-            {1},
-            {1},
-            {1}
-    };
+    private static final Table orTable = new Table(
+            new double[][]{{0, 0}, {0, 1}, {1, 0}, {1, 1}},
+            new double[][]{{0}, {1}, {1}, {1}}
+    );
 
     // Données d'entraînement et de test pour AND
-    private static final double[][] trainingOutputsAND = {
-            {0},
-            {0},
-            {0},
-            {1}
-    };
+    private static final Table andTable = new Table(
+            new double[][]{{0, 0}, {0, 1}, {1, 0}, {1, 1}},
+            new double[][]{{0}, {0}, {0}, {1}}
+    );
 
     public static void main(String[] args) {
         results = new ArrayList<>();
         results.add("Réseau de neurones MLP");
-        // Définir la structure du réseau
-        int[] layers = {2, 2, 1}; // Exemple : 2 neurones en entrée, 2 en couche cachée, 1 en sortie
-        double learningRate = 0.01;
 
         // Tester avec les deux fonctions de transfert
         TransferFunction[] activationFunctions = {new Sigmoide(), new Tanh()};
 
         for (TransferFunction activationFunction : activationFunctions) {
             results.add("\nFonction de Transfert : " + activationFunction.getClass().getSimpleName());
-            MLP mlp = new MLP(layers, learningRate, activationFunction);
 
-            double[][] testInputsXOR = trainingInputs.clone();
-            double[][] testOutputsXOR = trainingOutputsXOR.clone();
+            Table xorTableCopy = xorTable;
+            Table orTableCopy = orTable;
+            Table andTableCopy = andTable;
 
-            // Entraînement et tests pour XOR
-            trainAndTest(mlp, "XOR", trainingInputs, trainingOutputsXOR, testInputsXOR, testOutputsXOR);
+            if(activationFunction instanceof Tanh) {
+                xorTableCopy = new Table(
+                        convertZerosToMinusOne(xorTable.inputs),
+                        convertZerosToMinusOne(xorTable.outputs)
+                );
 
-            double[][] testInputsOR = trainingInputs.clone();
-            double[][] testOutputsOR = trainingOutputsOR.clone();
+                orTableCopy = new Table(
+                        convertZerosToMinusOne(orTable.inputs),
+                        convertZerosToMinusOne(orTable.outputs)
+                );
 
-            // Entraînement et tests pour OR
-            trainAndTest(mlp, "OR", trainingInputs, trainingOutputsOR, testInputsOR, testOutputsOR);
+                andTableCopy = new Table(
+                        convertZerosToMinusOne(andTable.inputs),
+                        convertZerosToMinusOne(andTable.outputs)
+                );
+            }
 
-            double[][] testInputsAND = trainingInputs.clone();
-            double[][] testOutputsAND = trainingOutputsAND.clone();
+            // Entraînement et tests pour XOR avec architecture {2,4,4,1} et learningRate 3.0
+            MLP mlp1 = new MLP(new int[]{2, 4, 4, 1}, 1.5, activationFunction);
+            trainAndTest(mlp1, "XOR", xorTableCopy, activationFunction);
 
-            // Entraînement et tests pour AND
-            trainAndTest(mlp, "AND", trainingInputs, trainingOutputsAND, testInputsAND, testOutputsAND);
+            // Entraînement et tests pour OR avec architecture {2,1} et learningRate 0.3
+            MLP mlp2 = new MLP(new int[]{2, 1}, 0.3, activationFunction);
+            trainAndTest(mlp2, "OR", orTableCopy, activationFunction);
+
+            // Entraînement et tests pour AND avec architecture {2,1} et learningRate 0.3
+            MLP mlp3 = new MLP(new int[]{2, 1}, 0.3, activationFunction);
+            trainAndTest(mlp3, "AND", andTableCopy, activationFunction);
 
             System.out.println();
         }
@@ -79,8 +87,7 @@ public class MainMLP {
     }
 
     // Méthode générique pour l'entraînement et les tests
-    private static void trainAndTest(MLP mlp, String tableName, double[][] trainingInputs, double[][] trainingOutputs,
-                                     double[][] testInputs, double[][] testOutputs) {
+    private static void trainAndTest(MLP mlp, String tableName, Table table, TransferFunction activationFunction) {
         int numEpochs = 100000;
         int successfulExamples = 0;
 
@@ -91,12 +98,12 @@ public class MainMLP {
             double totalError = 0.0;
 
             // Mélanger les données d'entraînement
-            shuffle(trainingInputs, trainingOutputs);
+            shuffle(table.inputs, table.outputs);
 
             // Itérer sur chaque exemple d'entraînement
-            for (int example = 0; example < trainingInputs.length; example++) {
-                double[] input = trainingInputs[example];
-                double[] targetOutput = trainingOutputs[example];
+            for (int example = 0; example < table.inputs.length; example++) {
+                double[] input = table.inputs[example];
+                double[] targetOutput = table.outputs[example];
 
                 // Forward pass (exécution) et Backward pass (rétropropagation)
                 double error = mlp.backPropagate(input, targetOutput);
@@ -104,31 +111,34 @@ public class MainMLP {
             }
 
             // Calculer l'erreur moyenne pour cette époque
-            double averageError = totalError / trainingInputs.length;
+            double averageError = totalError / table.inputs.length;
 
             // Afficher l'erreur moyenne pour le suivi
-            System.out.println("Époque " + epoch + ", Erreur Moyenne : " + averageError);
+            //System.out.println("Époque " + epoch + ", Erreur Moyenne : " + averageError);
 
             // Tester régulièrement les résultats
             if (epoch % 1000 == 0) {
-                successfulExamples = countSuccessfulExamples(mlp, testInputs, testOutputs);
+                successfulExamples = countSuccessfulExamples(mlp, table, activationFunction);
                 System.out.println("Époque " + epoch + ", Table " + tableName + ", Exemples Réussis : " + successfulExamples +
-                        " / " + testInputs.length);
+                        " / " + table.inputs.length);
             }
 
             // Tester si tous les exemples sont réussis
-            if (successfulExamples == testInputs.length) {
+            if (successfulExamples == table.inputs.length) {
                 System.out.println("Tous les exemples sont réussis. Arrêt de l'apprentissage.");
                 break;
             }
         }
 
+        // Trier les exemples avant de les afficher
+        sortExamples(table);
+
         // Tester sur les données après l'apprentissage
         results.add("Test final sur la table " + tableName + " :");
-        for (int i = 0; i < testInputs.length; i++) {
-            double[] input = testInputs[i];
+        for (int i = 0; i < table.inputs.length; i++) {
+            double[] input = table.inputs[i];
             double[] prediction = mlp.execute(input);
-            results.add("Exemple " + Arrays.toString(testInputs[i]) + ", Prédiction : " + Arrays.toString(prediction));
+            results.add("Exemple " + Arrays.toString(table.inputs[i]) + ", Prédiction : " + Arrays.toString(prediction));
         }
     }
 
@@ -151,20 +161,23 @@ public class MainMLP {
     }
 
     // Compter le nombre d'exemples réussis
-    private static int countSuccessfulExamples(MLP mlp, double[][] inputs, double[][] targets) {
+    private static int countSuccessfulExamples(MLP mlp, Table table, TransferFunction activationFunction) {
         int count = 0;
-        for (int i = 0; i < inputs.length; i++) {
-            double[] input = inputs[i];
-            double[] target = targets[i];
+        for (int i = 0; i < table.inputs.length; i++) {
+            double[] input = table.inputs[i];
+            double[] target = table.outputs[i];
             double[] prediction = mlp.execute(input);
 
-            // Vérifier si la prédiction correspond à la cible
-            boolean success = true;
-            for (int j = 0; j < target.length; j++) {
-                if (Math.abs(prediction[j] - target[j]) > 0.1) {
-                    success = false;
-                    break;
-                }
+            boolean success;
+
+            if (activationFunction instanceof Sigmoide) {
+                success = isSuccessSigmoide(target, prediction);
+            } else if (activationFunction instanceof Tanh) {
+                success = isSuccessTanh(target, prediction);
+            } else {
+                System.out.println("Erreur : Fonction de transfert non reconnue.");
+                System.exit(1);
+                return 0; // Ajout pour éviter l'erreur de compilation (ce chemin du code ne devrait jamais être atteint)
             }
 
             if (success) {
@@ -172,5 +185,51 @@ public class MainMLP {
             }
         }
         return count;
+    }
+
+    private static boolean isSuccessSigmoide(double[] target, double[] prediction) {
+        // Vérifier si la prédiction correspond à la cible
+        boolean success = true;
+        for (int j = 0; j < target.length; j++) {
+            if (Math.abs(prediction[j] - target[j]) > 0.1) {
+                success = false;
+                break;
+            }
+        }
+        return success;
+    }
+
+    private static boolean isSuccessTanh(double[] target, double[] prediction) {
+        // Vérifier si les signes des prédictions correspondent aux signes des cibles
+        boolean success = true;
+        for (int j = 0; j < target.length; j++) {
+            if ((prediction[j] > 0.0 && target[j] < 0.0) || (prediction[j] < 0.0 && target[j] > 0.0)) {
+                success = false;
+                break;
+            }
+        }
+        return success;
+    }
+
+
+    public static double[][] convertZerosToMinusOne(double[][] inputs) {
+        double[][] convertedInputs = new double[inputs.length][inputs[0].length];
+        for (int i = 0; i < inputs.length; i++) {
+            double[] input = inputs[i];
+            for (int j = 0; j < input.length; j++) {
+                if (input[j] == 0.0) {
+                    convertedInputs[i][j] = -1.0;
+                } else {
+                    convertedInputs[i][j] = input[j];
+                }
+            }
+        }
+        return convertedInputs;
+    }
+
+    // Trier les exemples pour l'affichage
+    private static void sortExamples(Table table) {
+        Arrays.sort(table.inputs, Comparator.comparing(Arrays::toString));
+        Arrays.sort(table.outputs, Comparator.comparing(Arrays::toString));
     }
 }
